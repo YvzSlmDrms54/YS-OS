@@ -34,7 +34,7 @@ static int set_field(char *field, const char *value)
 void user_init(void)
 {
     strcpy(name, "user");
-    strcpy(host, "ys-os");
+    strcpy(host, "yunix");
 }
 
 const char *user_name(void) { return name; }
