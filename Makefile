@@ -3,16 +3,17 @@ LD      = ld
 CFLAGS  = -m32 -std=gnu99 -ffreestanding -O2 -Wall -Wextra -fno-stack-protector -Iinclude
 LDFLAGS = -m elf_i386 -T linker.ld -nostdlib
 
-KERNEL  = ys-os.bin
+KERNEL  = seaweed.bin
 ISO     = ys-os.iso
 
-CSRC    = $(wildcard kernel/*.c drivers/*.c)
-OBJS    = build/boot.o $(patsubst %.c,build/%.o,$(CSRC))
+ASRC    = $(wildcard boot/*.s)
+CSRC    = $(wildcard kernel/*.c drivers/*.c lib/*.c fs/*.c)
+OBJS    = $(patsubst %.s,build/%.o,$(ASRC)) $(patsubst %.c,build/%.o,$(CSRC))
 
 all: $(KERNEL)
 
-build/boot.o: boot/boot.s
-	@mkdir -p build
+build/%.o: %.s
+	@mkdir -p $(dir $@)
 	$(CC) -m32 -c $< -o $@
 
 build/%.o: %.c

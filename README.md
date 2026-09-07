@@ -1,6 +1,6 @@
 # YS-OS
 
-_A hobby operating system for x86, written from scratch._
+_A hobby operating system for x86, built on the Seaweed kernel._
 
 Early development: multiboot header, kernel entry, VGA text-mode driver.
 
@@ -18,18 +18,18 @@ Early development: multiboot header, kernel entry, VGA text-mode driver.
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `boot.s` | Multiboot header, stack setup, entry point |
-| `linker.ld` | Memory layout: kernel loads at 1 MiB |
-| `kernel.c` | VGA text driver and `kernel_main()` |
-| `grub.cfg` | GRUB menu entry for the ISO |
+| File        | Purpose                                    |
+| ----------- | ------------------------------------------ |
+| `boot.s`    | Multiboot header, stack setup, entry point |
+| `linker.ld` | Memory layout: kernel loads at 1 MiB       |
+| `kernel.c`  | VGA text driver and `kernel_main()`        |
+| `grub.cfg`  | GRUB menu entry for the ISO                |
 
 ## Roadmap
 
 - [x] Boot with GRUB, print to screen
-- [ ] GDT (Global Descriptor Table)
-- [ ] IDT and interrupt handling
-- [ ] PS/2 keyboard driver
+- [x] GDT (Global Descriptor Table)
+- [x] IDT and interrupt handling
+- [x] PS/2 keyboard driver
 - [ ] `kmalloc` / physical memory manager
-- [ ] Shell
+- [x] Shell

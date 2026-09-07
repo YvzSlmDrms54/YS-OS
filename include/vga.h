@@ -17,4 +17,10 @@ void vga_clear(void);
 void vga_putchar(char c);
 void vga_write(const char *s);
 
+/* Cursor movement, used by the arrow keys. */
+void vga_cursor_left(void);
+void vga_cursor_right(void);
+void vga_cursor_up(void);
+void vga_cursor_down(void);
+
 #endif
