@@ -1,4 +1,4 @@
-# YS-OS
+# Yunix
 
 _A hobby operating system for x86, built on the Seaweed kernel._
 
@@ -10,9 +10,9 @@ Early development: multiboot header, kernel entry, VGA text-mode driver.
 
 ## Building
 
-    make            # builds ys-os.bin
+    make            # builds seaweed.bin
     make run        # boots it in QEMU (fastest)
-    make iso        # builds ys-os.iso for VirtualBox / USB
+    make iso        # builds yunix.iso for VirtualBox / USB
     make run-iso    # boots the ISO in QEMU
     make clean
 

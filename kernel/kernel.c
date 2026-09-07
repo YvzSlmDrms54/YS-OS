@@ -1,4 +1,4 @@
-/* kernel/kernel.c - YS-OS entry point. */
+/* kernel/kernel.c - Yunix entry point. */
 
 #include "vga.h"
 #include "gdt.h"
@@ -14,7 +14,7 @@ void kernel_main(void)
     vga_init();
 
     vga_set_color(VGA_LIGHT_CYAN, VGA_BLACK);
-    vga_write("YS-OS\n");
+    vga_write("Yunix v0.1.2\n");
     vga_write("Kernel: Seaweed v0.1\n");
 
     vga_set_color(VGA_LIGHT_GREY, VGA_BLACK);

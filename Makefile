@@ -4,7 +4,7 @@ CFLAGS  = -m32 -std=gnu99 -ffreestanding -O2 -Wall -Wextra -fno-stack-protector 
 LDFLAGS = -m elf_i386 -T linker.ld -nostdlib
 
 KERNEL  = seaweed.bin
-ISO     = ys-os.iso
+ISO     = yunix.iso
 
 ASRC    = $(wildcard boot/*.s)
 CSRC    = $(wildcard kernel/*.c drivers/*.c lib/*.c fs/*.c)

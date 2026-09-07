@@ -1,4 +1,4 @@
-/* kernel/shell.c - the YS-OS command shell. */
+/* kernel/shell.c - the Yunix command shell. */
 
 #include "shell.h"
 #include "vga.h"
@@ -72,10 +72,10 @@ static void cmd_about(const char *arg)
 {
     (void)arg;
     vga_set_color(VGA_LIGHT_CYAN, VGA_BLACK);
-    vga_write("YS-OS\n");
+    vga_write("Yunix v0.1.2\n");
+    vga_write("Kernel: Seaweed v0.1\n");
     vga_set_color(VGA_LIGHT_GREY, VGA_BLACK);
     vga_write("A hobby operating system by Yavuz Selim.\n");
-    vga_write("Kernel: Seaweed v0.1\n");
     vga_write("32-bit x86, booted by GRUB via multiboot.\n");
     vga_write("Written in C and assembly, no libc underneath.\n");
 }
