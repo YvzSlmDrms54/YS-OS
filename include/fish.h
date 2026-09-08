@@ -5,10 +5,13 @@
 
 /* Fish - the Seaweed filesystem.
  *
- * Version 1 lives entirely in RAM and disappears on reboot. There is no
- * kmalloc yet, so everything comes from a fixed pool decided at compile
- * time. When a disk driver exists, this is the layer that gains a
- * save and load path.
+ * The tree lives in RAM and is written to disk in one piece by
+ * fish_save(), then read back by fish_load(). Nothing is saved
+ * automatically: changes are lost unless you save them.
+ *
+ * There is no kmalloc yet, so the node pool is a fixed size decided at
+ * compile time. Nodes refer to their parent by index rather than by
+ * pointer, which is what lets the whole array go to disk unchanged.
  */
 
 #define FISH_NAME_MAX   32
@@ -27,6 +30,9 @@
 #define FISH_ERR_ISDIR  -6
 #define FISH_ERR_NOTEMPTY -7
 #define FISH_ERR_SPACE  -8
+#define FISH_ERR_NODISK -9
+#define FISH_ERR_IO     -10
+#define FISH_ERR_FORMAT -11
 
 void fish_init(void);
 
@@ -49,6 +55,11 @@ int  fish_next(int handle, const char **name_out, int *is_dir_out,
 
 /* Writes the current directory as a path like "/notes/2026". */
 void fish_path(char *buffer, size_t size);
+
+/* Writes the whole filesystem to disk, or reads it back. Both need a
+ * disk on the primary IDE channel; without one they fail cleanly. */
+int  fish_save(void);
+int  fish_load(void);
 
 /* Turns an error code into something a human can read. */
 const char *fish_error(int code);

@@ -1,4 +1,4 @@
-/* fs/fish.c - the Fish filesystem, version 1.
+/* fs/fish.c - the Fish filesystem, version 1.1
  *
  * A tree of nodes held in one fixed array. Each node knows its parent by
  * index rather than by pointer, which keeps the whole thing relocatable
@@ -9,6 +9,8 @@
 
 #include "fish.h"
 #include "string.h"
+#include "ata.h"
+#include <stdint.h>
 
 struct node {
     char   name[FISH_NAME_MAX];
@@ -255,6 +257,110 @@ void fish_path(char *buffer, size_t size)
     buffer[pos] = '\0';
 }
 
+/* --- saving and loading --- */
+
+/* "FISH" as four bytes, read back as a little-endian number. */
+#define FISH_MAGIC   0x48534946u
+#define FISH_VERSION 1u
+
+/* Sector 0 holds this; the nodes follow from sector 1. */
+struct superblock {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t node_count;   /* how many nodes the image was written with */
+    uint32_t node_size;    /* and how big each one was */
+    uint32_t current;      /* which directory was open at save time */
+};
+
+/* How many whole sectors the node array needs. */
+#define NODE_BYTES   (sizeof(nodes))
+#define NODE_SECTORS ((NODE_BYTES + ATA_SECTOR_SIZE - 1) / ATA_SECTOR_SIZE)
+
+int fish_save(void)
+{
+    char sector[ATA_SECTOR_SIZE];
+    struct superblock sb;
+    const char *source = (const char *)nodes;
+    uint32_t written = 0;
+
+    if (!ata_present()) return FISH_ERR_NODISK;
+
+    sb.magic      = FISH_MAGIC;
+    sb.version    = FISH_VERSION;
+    sb.node_count = FISH_MAX_NODES;
+    sb.node_size  = (uint32_t)sizeof(struct node);
+    sb.current    = (uint32_t)current;
+
+    memset(sector, 0, sizeof(sector));
+    memcpy(sector, &sb, sizeof(sb));
+    if (ata_write(0, 1, sector) != 0) return FISH_ERR_IO;
+
+    /* Copy through a 512-byte buffer so the last, partly filled sector
+     * is padded with zeros rather than with whatever follows in memory. */
+    for (uint32_t s = 0; s < NODE_SECTORS; s++) {
+        uint32_t remaining = (uint32_t)NODE_BYTES - written;
+        uint32_t chunk = remaining < ATA_SECTOR_SIZE ? remaining
+                                                     : ATA_SECTOR_SIZE;
+
+        memset(sector, 0, sizeof(sector));
+        memcpy(sector, source + written, chunk);
+
+        if (ata_write(1 + s, 1, sector) != 0) return FISH_ERR_IO;
+        written += chunk;
+    }
+
+    return FISH_OK;
+}
+
+int fish_load(void)
+{
+    char sector[ATA_SECTOR_SIZE];
+    struct superblock sb;
+    char *dest = (char *)nodes;
+    uint32_t read_so_far = 0;
+
+    if (!ata_present()) return FISH_ERR_NODISK;
+
+    if (ata_read(0, 1, sector) != 0) return FISH_ERR_IO;
+    memcpy(&sb, sector, sizeof(sb));
+
+    /* Refuse anything we do not recognise. Loading a mismatched image
+     * would fill the node array with nonsense. */
+    if (sb.magic != FISH_MAGIC)                    return FISH_ERR_FORMAT;
+    if (sb.version != FISH_VERSION)                return FISH_ERR_FORMAT;
+    if (sb.node_count != FISH_MAX_NODES)           return FISH_ERR_FORMAT;
+    if (sb.node_size != sizeof(struct node))       return FISH_ERR_FORMAT;
+
+    for (uint32_t s = 0; s < NODE_SECTORS; s++) {
+        uint32_t remaining = (uint32_t)NODE_BYTES - read_so_far;
+        uint32_t chunk = remaining < ATA_SECTOR_SIZE ? remaining
+                                                     : ATA_SECTOR_SIZE;
+
+        if (ata_read(1 + s, 1, sector) != 0) return FISH_ERR_IO;
+
+        memcpy(dest + read_so_far, sector, chunk);
+        read_so_far += chunk;
+    }
+
+    /* The saved directory index came off a disk, so treat it as
+     * untrusted: fall back to the root if it makes no sense. */
+    if (sb.current >= FISH_MAX_NODES ||
+        !nodes[sb.current].used ||
+        !nodes[sb.current].is_dir) {
+        current = 0;
+    } else {
+        current = (int)sb.current;
+    }
+
+    /* The root must always exist, whatever the image claimed. */
+    if (!nodes[0].used || !nodes[0].is_dir) {
+        fish_init();
+        return FISH_ERR_FORMAT;
+    }
+
+    return FISH_OK;
+}
+
 const char *fish_error(int code)
 {
     switch (code) {
@@ -267,6 +373,9 @@ const char *fish_error(int code)
     case FISH_ERR_ISDIR:     return "is a directory";
     case FISH_ERR_NOTEMPTY:  return "directory is not empty";
     case FISH_ERR_SPACE:     return "file is too big";
+    case FISH_ERR_NODISK:    return "no disk found";
+    case FISH_ERR_IO:        return "disk error";
+    case FISH_ERR_FORMAT:    return "disk holds no valid Fish image";
     default:                 return "unknown error";
     }
 }

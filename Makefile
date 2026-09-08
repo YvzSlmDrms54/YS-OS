@@ -5,6 +5,7 @@ LDFLAGS = -m elf_i386 -T linker.ld -nostdlib
 
 KERNEL  = seaweed.bin
 ISO     = yunix.iso
+DISK    = disk.img
 
 ASRC    = $(wildcard boot/*.s)
 CSRC    = $(wildcard kernel/*.c drivers/*.c lib/*.c fs/*.c)
@@ -24,8 +25,14 @@ $(KERNEL): $(OBJS) linker.ld
 	$(LD) $(LDFLAGS) -o $(KERNEL) $(OBJS)
 	@echo "Built $(KERNEL)"
 
-run: $(KERNEL)
-	qemu-system-i386 -kernel $(KERNEL) -display curses
+$(DISK):
+	dd if=/dev/zero of=$(DISK) bs=1M count=8 2>/dev/null
+	@echo "Created $(DISK)"
+
+disk: $(DISK)
+
+run: $(KERNEL) $(DISK)
+	qemu-system-i386 -kernel $(KERNEL) -drive file=$(DISK),format=raw,if=ide -display curses
 
 run-gui: $(KERNEL)
 	qemu-system-i386 -kernel $(KERNEL)

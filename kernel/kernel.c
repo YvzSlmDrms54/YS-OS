@@ -8,6 +8,7 @@
 #include "shell.h"
 #include "user.h"
 #include "fish.h"
+#include "ata.h"
 
 void kernel_main(void)
 {
@@ -41,6 +42,21 @@ void kernel_main(void)
 
     user_init();
     fish_init();
+        if (ata_init()) {
+        vga_set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+        vga_write("[ ok ] ATA disk found on the primary channel\n");
+
+        if (fish_load() == FISH_OK) {
+            vga_write("[ ok ] Fish filesystem restored from disk\n");
+        } else {
+            vga_set_color(VGA_YELLOW, VGA_BLACK);
+            vga_write("[ .. ] No saved filesystem. Type format to make one.\n");
+        }
+    } else {
+        vga_set_color(VGA_YELLOW, VGA_BLACK);
+        vga_write("[ .. ] No disk found. Files will vanish on reboot.\n");
+    }
+    vga_set_color(VGA_LIGHT_GREY, VGA_BLACK);
 
     shell_run();   /* never returns */
 }

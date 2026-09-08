@@ -19,6 +19,20 @@ static inline uint8_t inb(uint16_t port)
     return result;
 }
 
+/* The 16-bit versions. ATA moves data a word at a time, not a byte. */
+
+static inline void outw(uint16_t port, uint16_t value)
+{
+    __asm__ volatile ("outw %0, %1" : : "a"(value), "Nd"(port));
+}
+
+static inline uint16_t inw(uint16_t port)
+{
+    uint16_t result;
+    __asm__ volatile ("inw %1, %0" : "=a"(result) : "Nd"(port));
+    return result;
+}
+
 /* Some old devices need a moment to react. Writing to port 0x80 is a
  * traditional way to waste exactly the right amount of time. */
 static inline void io_wait(void)

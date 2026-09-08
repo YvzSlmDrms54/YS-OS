@@ -9,6 +9,7 @@
 #include "timer.h"
 #include "user.h"
 #include "fish.h"
+#include "ata.h"
 
 #define LINE_MAX 256
 
@@ -316,6 +317,48 @@ static void write_common(const char *arg, int appending)
 static void cmd_write(const char *arg)  { write_common(arg, 0); }
 static void cmd_append(const char *arg) { write_common(arg, 1); }
 
+static void cmd_save(const char *arg)
+{
+    int result;
+
+    (void)arg;
+
+    result = fish_save();
+    if (result < 0) { fish_fail("save", result); return; }
+    vga_write("Filesystem written to disk.\n");
+}
+
+static void cmd_load(const char *arg)
+{
+    int result;
+
+    (void)arg;
+
+    result = fish_load();
+    if (result < 0) { fish_fail("load", result); return; }
+    vga_write("Filesystem restored from disk.\n");
+}
+
+static void cmd_format(const char *arg)
+{
+    int result;
+
+    (void)arg;
+
+    fish_init();
+    result = fish_save();
+    if (result < 0) { fish_fail("format", result); return; }
+    vga_write("Filesystem erased and written to disk.\n");
+}
+
+static void cmd_disk(const char *arg)
+{
+    (void)arg;
+
+    if (ata_present()) vga_write("Primary master: present\n");
+    else               vga_write("Primary master: not found\n");
+}
+
 static void cmd_color(const char *arg)
 {
     int value = 0;
@@ -380,6 +423,10 @@ static const struct command commands[] = {
     { "write",      cmd_write    },
     { "append",     cmd_append   },
     { "rm",         cmd_rm       },
+    { "save",       cmd_save     },
+    { "load",       cmd_load     },
+    { "format",     cmd_format   },
+    { "disk",       cmd_disk     },
     { "color",      cmd_color    },
     { "whoami",     cmd_whoami   },
     { "user",       cmd_user     },
