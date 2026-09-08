@@ -53,6 +53,11 @@ int  fish_first(void);
 int  fish_next(int handle, const char **name_out, int *is_dir_out,
                size_t *size_out);
 
+/* Remembers the current directory so you can move away and come back.
+ * The handle is only meaningful to Fish - do not interpret it. */
+int  fish_save_cwd(void);
+void fish_restore_cwd(int handle);
+
 /* Writes the current directory as a path like "/notes/2026". */
 void fish_path(char *buffer, size_t size);
 

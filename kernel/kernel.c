@@ -48,6 +48,7 @@ void kernel_main(void)
 
         if (fish_load() == FISH_OK) {
             vga_write("[ ok ] Fish filesystem restored from disk\n");
+            user_load();
         } else {
             vga_set_color(VGA_YELLOW, VGA_BLACK);
             vga_write("[ .. ] No saved filesystem. Type format to make one.\n");

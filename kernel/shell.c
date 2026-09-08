@@ -17,34 +17,9 @@ static char line[LINE_MAX];
 
 /* --- commands --- */
 
-static void cmd_help(const char *arg)
-{
-    (void)arg;
-    vga_write("Available commands:\n");
-    vga_write("  help                  show this list\n");
-    vga_write("  clear                 clear the screen\n");
-    vga_write("  neofetch              show the logo\n");
-    vga_write("  echo <text>           print text back\n");
-    vga_write("  about                 information about this system\n");
-    vga_write("  ls                    lists the directories and files in the directory\n");
-    vga_write("  cd <directory>        goes in/out of a directory\n");
-    vga_write("  pwd                   i forgot what this did\n");
-    vga_write("  mkdir <name>          creates a directory\n");
-    vga_write("  touch <name>          creates a file\n");
-    vga_write("  cat <file>            displays whats writing in the file\n");
-    vga_write("  write <file> <text>   writes text to a file\n");
-    vga_write("  append <file> <text>  adds text to a file\n");
-    vga_write("  rm <file/directory>   deletes a file/directory\n");
-    vga_write("  color <0-15>          change the text colour\n");
-    vga_write("  whoami                print the current user name\n");
-    vga_write("  user <name>           change the user name\n");
-    vga_write("  hostname [name]       show or change the computer name\n");
-    vga_write("  uptime                how long the system has been running\n");
-    vga_write("  ticks                 raw timer tick count\n");
-    vga_write("  sleep <secs>          wait for a while\n");
-    vga_write("  reboot                restart the machine\n");
-    vga_write("  halt                  stop the CPU\n");
-}
+/* Defined at the bottom: it walks the command table, which does not
+ * exist yet at this point in the file. */
+static void cmd_help(const char *arg);
 
 static void cmd_clear(const char *arg)
 {
@@ -157,7 +132,9 @@ static void cmd_user(const char *arg)
     }
     if (!user_set_name(arg)) {
         vga_write("user: names cannot be empty or contain spaces\n");
+        return;
     }
+    user_save();
 }
 
 static void cmd_hostname(const char *arg)
@@ -169,7 +146,9 @@ static void cmd_hostname(const char *arg)
     }
     if (!user_set_host(arg)) {
         vga_write("hostname: names cannot be empty or contain spaces\n");
+        return;
     }
+    user_save();
 }
 
 /* ---- Fish filesystem commands ---- */
@@ -323,6 +302,8 @@ static void cmd_save(const char *arg)
 
     (void)arg;
 
+    user_save();
+
     result = fish_save();
     if (result < 0) { fish_fail("save", result); return; }
     vga_write("Filesystem written to disk.\n");
@@ -403,42 +384,119 @@ static void cmd_halt(const char *arg)
     for (;;) __asm__ volatile ("cli; hlt");
 }
 
+/* --- the command table ---
+ *
+ * Name, how to call it, one line of help, and the function. Keeping the
+ * help text here means a new command is one row, not a row plus a line
+ * somewhere else that is easy to forget. */
+
 struct command {
     const char *name;
+    const char *args;   /* how to call it, or "" when it takes nothing */
+    const char *help;   /* one line, shown by the help command */
     void      (*run)(const char *arg);
 };
 
 static const struct command commands[] = {
-    { "help",       cmd_help     },
-    { "neofetch",   cmd_neofetch },
-    { "clear",      cmd_clear    },
-    { "echo",       cmd_echo     },
-    { "about",      cmd_about    },
-    { "ls",         cmd_ls       },
-    { "cd",         cmd_cd       },
-    { "pwd",        cmd_pwd      },
-    { "mkdir",      cmd_mkdir    },
-    { "touch",      cmd_touch    },
-    { "cat",        cmd_cat      },
-    { "write",      cmd_write    },
-    { "append",     cmd_append   },
-    { "rm",         cmd_rm       },
-    { "save",       cmd_save     },
-    { "load",       cmd_load     },
-    { "format",     cmd_format   },
-    { "disk",       cmd_disk     },
-    { "color",      cmd_color    },
-    { "whoami",     cmd_whoami   },
-    { "user",       cmd_user     },
-    { "hostname",   cmd_hostname },
-    { "uptime",     cmd_uptime   },
-    { "ticks",      cmd_ticks    },
-    { "sleep",      cmd_sleep    },
-    { "reboot",     cmd_reboot   },
-    { "halt",       cmd_halt     },
+    { "help",     "[page]",         "show this list",                    cmd_help     },
+    { "neofetch", "",               "show the logo",                     cmd_neofetch },
+    { "clear",    "",               "clear the screen",                  cmd_clear    },
+    { "echo",     "<text>",         "print text back",                   cmd_echo     },
+    { "about",    "",               "information about this system",     cmd_about    },
+    { "ls",       "",               "list files in the directory",       cmd_ls       },
+    { "cd",       "<dir>",          "go in or out of a directory",       cmd_cd       },
+    { "pwd",      "",               "print the current directory",       cmd_pwd      },
+    { "mkdir",    "<name>",         "create a directory",                cmd_mkdir    },
+    { "touch",    "<name>",         "create a file",                     cmd_touch    },
+    { "cat",      "<file>",         "show what is inside a file",        cmd_cat      },
+    { "write",    "<file> <text>",  "write text to a file",              cmd_write    },
+    { "append",   "<file> <text>",  "add text to a file",                cmd_append   },
+    { "rm",       "<name>",         "delete a file or empty directory",  cmd_rm       },
+    { "save",     "",               "write the filesystem to disk",      cmd_save     },
+    { "load",     "",               "read the filesystem from disk",     cmd_load     },
+    { "format",   "",               "erase the filesystem and save it",  cmd_format   },
+    { "disk",     "",               "is there a disk attached?",         cmd_disk     },
+    { "color",    "<0-15>",         "change the text colour",            cmd_color    },
+    { "whoami",   "",               "print the current user name",       cmd_whoami   },
+    { "user",     "<name>",         "change the user name",              cmd_user     },
+    { "hostname", "[name]",         "show or change the computer name",  cmd_hostname },
+    { "uptime",   "",               "how long the system has run",       cmd_uptime   },
+    { "ticks",    "",               "raw timer tick count",              cmd_ticks    },
+    { "sleep",    "<secs>",         "wait for a while",                  cmd_sleep    },
+    { "reboot",   "",               "restart the machine",               cmd_reboot   },
+    { "halt",     "",               "stop the CPU",                      cmd_halt     },
 };
 
 #define COMMAND_COUNT (sizeof(commands) / sizeof(commands[0]))
+
+/* Twenty rows plus a header and a footer fits inside 25 lines. */
+#define HELP_PER_PAGE 20
+#define HELP_COLUMN   23
+
+static size_t help_pages(void)
+{
+    return (COMMAND_COUNT + HELP_PER_PAGE - 1) / HELP_PER_PAGE;
+}
+
+/* Writes "  name args" and pads it out so the descriptions line up. */
+static void write_padded(const char *name, const char *args)
+{
+    size_t width = 0;
+
+    vga_write("  ");
+    vga_write(name);
+    width += strlen(name);
+
+    if (args[0] != '\0') {
+        vga_putchar(' ');
+        width++;
+        vga_write(args);
+        width += strlen(args);
+    }
+
+    while (width < HELP_COLUMN) { vga_putchar(' '); width++; }
+}
+
+static void cmd_help(const char *arg)
+{
+    size_t page = 1;
+    size_t pages = help_pages();
+    size_t start, i;
+    char buffer[12];
+
+    if (arg[0] != '\0') {
+        page = 0;
+        for (size_t j = 0; arg[j] != '\0'; j++) {
+            if (arg[j] < '0' || arg[j] > '9') {
+                vga_write("help: not a number\n");
+                return;
+            }
+            page = page * 10 + (size_t)(arg[j] - '0');
+        }
+        if (page < 1 || page > pages) {
+            vga_write("help: no such page\n");
+            return;
+        }
+    }
+
+    start = (page - 1) * HELP_PER_PAGE;
+
+    vga_write("Available commands (page ");
+    utoa((unsigned int)page, buffer, 10);
+    vga_write(buffer);
+    vga_write(" of ");
+    utoa((unsigned int)pages, buffer, 10);
+    vga_write(buffer);
+    vga_write("):\n");
+
+    for (i = start; i < start + HELP_PER_PAGE && i < COMMAND_COUNT; i++) {
+        write_padded(commands[i].name, commands[i].args);
+        vga_write(commands[i].help);
+        vga_putchar('\n');
+    }
+
+    if (page < pages) vga_write("\nType help 2 for more.\n");
+}
 
 /* --- input --- */
 

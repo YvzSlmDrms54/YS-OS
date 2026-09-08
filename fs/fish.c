@@ -222,6 +222,21 @@ int fish_next(int handle, const char **name_out, int *is_dir_out,
     return 0;              /* nothing left */
 }
 
+int fish_save_cwd(void)
+{
+    return current;
+}
+
+void fish_restore_cwd(int handle)
+{
+    if (handle >= 0 && handle < FISH_MAX_NODES &&
+        nodes[handle].used && nodes[handle].is_dir) {
+        current = handle;
+    } else {
+        current = 0;
+    }
+}
+
 void fish_path(char *buffer, size_t size)
 {
     /* Walk from the current directory up to the root, collecting the
@@ -263,7 +278,7 @@ void fish_path(char *buffer, size_t size)
 #define FISH_MAGIC   0x48534946u
 #define FISH_VERSION 1u
 
-/* Sector 0 holds this; the nodes follow from sector 1. */
+/* The first sector of our area holds this; the nodes follow it. */
 struct superblock {
     uint32_t magic;
     uint32_t version;
@@ -275,6 +290,12 @@ struct superblock {
 /* How many whole sectors the node array needs. */
 #define NODE_BYTES   (sizeof(nodes))
 #define NODE_SECTORS ((NODE_BYTES + ATA_SECTOR_SIZE - 1) / ATA_SECTOR_SIZE)
+/* Where our image starts on the disk.
+ *
+ * Not sector 0: that is the MBR, which holds the partition table and the
+ * first stage of the machine's boot loader. Overwriting it on a real
+ * computer would stop the installed system from starting. */
+#define FISH_START_LBA 2048
 
 int fish_save(void)
 {
@@ -293,7 +314,7 @@ int fish_save(void)
 
     memset(sector, 0, sizeof(sector));
     memcpy(sector, &sb, sizeof(sb));
-    if (ata_write(0, 1, sector) != 0) return FISH_ERR_IO;
+    if (ata_write(FISH_START_LBA, 1, sector) != 0) return FISH_ERR_IO;
 
     /* Copy through a 512-byte buffer so the last, partly filled sector
      * is padded with zeros rather than with whatever follows in memory. */
@@ -305,7 +326,7 @@ int fish_save(void)
         memset(sector, 0, sizeof(sector));
         memcpy(sector, source + written, chunk);
 
-        if (ata_write(1 + s, 1, sector) != 0) return FISH_ERR_IO;
+        if (ata_write(FISH_START_LBA + 1 + s, 1, sector) != 0) return FISH_ERR_IO;
         written += chunk;
     }
 
@@ -321,7 +342,7 @@ int fish_load(void)
 
     if (!ata_present()) return FISH_ERR_NODISK;
 
-    if (ata_read(0, 1, sector) != 0) return FISH_ERR_IO;
+    if (ata_read(FISH_START_LBA, 1, sector) != 0) return FISH_ERR_IO;
     memcpy(&sb, sector, sizeof(sb));
 
     /* Refuse anything we do not recognise. Loading a mismatched image
@@ -336,7 +357,7 @@ int fish_load(void)
         uint32_t chunk = remaining < ATA_SECTOR_SIZE ? remaining
                                                      : ATA_SECTOR_SIZE;
 
-        if (ata_read(1 + s, 1, sector) != 0) return FISH_ERR_IO;
+        if (ata_read(FISH_START_LBA + 1 + s, 1, sector) != 0) return FISH_ERR_IO;
 
         memcpy(dest + read_so_far, sector, chunk);
         read_so_far += chunk;

@@ -15,4 +15,10 @@ const char *user_host(void);
 int user_set_name(const char *name);
 int user_set_host(const char *name);
 
+/* Keeps the names in a file at the root of the filesystem. Neither one
+ * touches the disk itself - fish_save() still has to be called for the
+ * change to survive a reboot. Return 1 on success, 0 on failure. */
+int user_save(void);
+int user_load(void);
+
 #endif
